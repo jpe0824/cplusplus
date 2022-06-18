@@ -44,7 +44,7 @@ struct Customer {
         // TODO
         return "Customer ID #" + to_string(cust_id) + ":\n" + name +
         ", ph. " + phone + ", email: " + email + "\n" + street +
-        "\n" + city + ", " + state + " " + zip;
+        "\n" + city + ", " + state + " " + zip + "\n";
     }
 };
 vector<Customer> customers;
@@ -195,6 +195,8 @@ public:
         sort(line_items.begin(), line_items.end());
         // Compute order_total: TODO
 
+
+
     }
     ~Order() {
         delete payment;
@@ -205,52 +207,73 @@ public:
     string print_order() const {
         // TODO
         // return print items needed
+        string items_str = "Order Detail:";
+        for (size_t i = 0; i < line_items.size(); i++) {
+            int item_id = line_items.at(i).item_id;
+            int item_index = find_item_idx(item_id);
+            string item_name = items.at(item_index).description;
+            double item_price = items.at(item_index).price;
 
+            items_str += "\n       Item " + to_string(item_id) + ": \"" + item_name +
+            "\", " + std::to_string(line_items.at(i).qty) + " @ " + to_string(item_price);
+        }
+        items_str += "\n";
+
+        int cust_index = find_cust_idx(cust_id);
+        string cust_string = customers.at(cust_index).print_detail();
+
+        stringstream ss;
+        ss << "===========================" <<
+                   "\nOrder #" << to_string(order_id) << ", Date: " << order_date <<
+                   "\nAmount: $" << to_string(total()) << ", " << payment->print_detail() <<
+                   "\n\n" << cust_string << // this is four lines long
+                   "\n" << items_str;
+
+        return ss.str();
     }
 };
 list<Order> orders;
 
 void read_orders(const string& fname) {
     ifstream orderf(fname);
-    string line;
-    while (getline(orderf, line)) {
+    string line1,line2;
+    while (getline(orderf, line1) && getline(orderf,line2)) {
         // TODO
         // split line
-        vector<string> order_substrings = split(line, ',');
+        vector<string> strings1 = split(line1, ',');
+        vector<string> strings2 = split(line2, ',');
         // Extract cust_id, order_id, and date
-        int cust_id = stoi(order_substrings.at(0));
-        string date = order_substrings.at(1);
+        int cust_id = stoi(strings1.at(0));
+        int order_id = stoi(strings1.at(1));
+        string date = strings1.at(2);
         // extract all order id's
-        int order_id = stoi(order_substrings.at(2));
-
         // Create line item vector
         vector<LineItem> line_items;
+        for (size_t i = 3; i < strings1.size(); i++) {
+            vector<string> item_strings = split(strings1.at(i),'-');
+            line_items.emplace_back(stoi(item_strings.at(0)),stoi(item_strings.at(1)));
+        }
         // TODO
-        // emplace here
-        //line_items.emplace_back(order_id,quantity);
         sort(begin(line_items), end(line_items));
-
         // Read payment method (by reading/splitting next line in file)
         // TODO
-        //
         // Create concrete Payment object on heap (pmt)
         Payment* pmt;
         // TODO
         // define what kind of payment used
-        // switch(line.at(0).at(0)) {
-        //     case '1': // credit card (card number and expiration date)
-        //         pmt = new Credit();
-        //         break;
-        //     case '2': // PayPal (paypal_id only)
-        //         pmt = new Paypal();
-        //         break;
-        //     case '3': // wire transfer (bank_id and account_id)
-        //         pmt = new WireTransfer();
-        //         break;
-        //     default:
-        //         cout << "ERROR: default reached in read_orders() switch statement" << endl;
-        // }
-
+        switch(strings2.at(0).at(0)) {
+            case '1': // credit card (card number and expiration date)
+                pmt = new Credit(strings2.at(1),strings2.at(2));
+                break;
+            case '2': // PayPal (paypal_id only)
+                pmt = new Paypal(strings2.at(1));
+                break;
+            case '3': // wire transfer (bank_id and account_id)
+                pmt = new WireTransfer(strings2.at(1),strings2.at(2));
+                break;
+            default:
+                cout << "ERROR: default reached in read_orders() switch statement" << endl;
+        }
         orders.emplace_back(order_id, date, cust_id, line_items, pmt);
     }
 }
